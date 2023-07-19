@@ -98,7 +98,7 @@ async def remove_button(update, context):
         args = query.data.split(' ')
         user_id = query.from_user.id
 
-        if str(user_id) != args[1]:
+        if str(user_id) != args[1] and str(user_id) not in config.AUTHORIZED_USERS:
             await update.callback_query.answer('Это не ваше сообщение!')
             return
 
