@@ -1,3 +1,6 @@
+import telegram
+
+
 async def delete_message(context):
     chat_id = context.job.chat_id
     msgs = context.job.data
@@ -6,4 +9,7 @@ async def delete_message(context):
         msgs = [context.job.data]
 
     for message in msgs:
-        await context.bot.delete_message(chat_id, message)
+        try:
+            await context.bot.delete_message(chat_id, message)
+        except telegram.error.BadRequest as e:
+            pass

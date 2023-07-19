@@ -1,5 +1,5 @@
-from telegram import constants
-from telegram.ext import CommandHandler, ContextTypes
+from telegram import constants, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import CommandHandler, ContextTypes, CallbackQueryHandler
 
 import bot.config as config
 import bot.handlers.scheduler as scheduler
@@ -36,7 +36,7 @@ async def start(update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_and_delete_message(context, chat_id, thread_id, reply_to_message_id, text, reply=False, delete=True,
-                                  **kwargs):
+                                  rm_button=False, **kwargs):
     """
     Отправляет сообщение в указанный чат, планирует его удаление через определенное время и при необходимости
     отвечает на определенное сообщение.
@@ -62,8 +62,14 @@ async def send_and_delete_message(context, chat_id, thread_id, reply_to_message_
     else:
         user_message_id = reply_to_message_id
 
+    if rm_button:
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Удалить", callback_data=f"rm {rm_button}")]])
+    else:
+        keyboard = None
+
     message = await context.bot.send_message(chat_id, message_thread_id=thread_id,
-                                             reply_to_message_id=user_message_id, text=text, **kwargs)
+                                             reply_to_message_id=user_message_id, text=text, reply_markup=keyboard,
+                                             **kwargs)
     if delete:
         context.job_queue.run_once(scheduler.delete_message, config.delete_timer,
                                    data=(message.message_id, reply_to_message_id), chat_id=chat_id)
@@ -83,6 +89,22 @@ async def remove(update, context):
         await context.bot.delete_message(update.effective_chat.id, message)
 
 
+async def remove_button(update):
+    query = update.callback_query
+
+    if str(query.data).startswith('rm'):
+        await query.answer()
+
+        args = query.data.split(' ')
+        user_id = query.from_user.id
+
+        if str(user_id) != args[1]:
+            await update.callback_query.answer('Это не ваше сообщение!')
+            return
+
+        await update.callback_query.message.delete()
+
+
 def init_handler(application):
     """
      Инициализирует и добавляет обработчики команд для приложения.
@@ -97,6 +119,7 @@ def init_handler(application):
          None
      """
 
-    application.add_handler(CommandHandler('start', start))
-    application.add_handler(CommandHandler('help', start))
-    application.add_handler(CommandHandler('rm', remove))
+    application.add_handler(CommandHandler('start', start, block=False))
+    application.add_handler(CommandHandler('help', start, block=False))
+    application.add_handler(CommandHandler('rm', remove, block=False))
+    application.add_handler(CallbackQueryHandler(remove_button, block=False))

@@ -39,8 +39,8 @@ async def cock_game(update, context):
                        f'🕐 Осталось {time_left}'
 
         await send_and_delete_message(context, update.effective_chat.id, thread_id, user_message_id,
-                                      message_text,
-                                      parse_mode=constants.ParseMode.MARKDOWN, reply=True)
+                                      message_text, reply=True, rm_button=user_id,
+                                      parse_mode=constants.ParseMode.MARKDOWN)
         return
 
     cock_size = fetch.fetch_by_id(user_id, 'cock')
@@ -81,7 +81,7 @@ async def cock_game(update, context):
 
     await send_and_delete_message(context, update.effective_chat.id, thread_id, user_message_id,
                                   message_text,
-                                  parse_mode=constants.ParseMode.MARKDOWN, reply=True, delete=False)
+                                  parse_mode=constants.ParseMode.MARKDOWN, reply=True, delete=False, rm_button=user_id)
 
 
 def check_cock_time(user_id, cock_time):
@@ -273,6 +273,9 @@ async def cock_unlock(update, context):
     cock_price = config.cock_price
 
     query = update.callback_query
+
+    if str(query.data).startswith('r'):
+        return
 
     user_id = query.from_user.id
     user_message_id = context.user_data['unlock_message_id']
