@@ -89,7 +89,7 @@ async def remove(update, context):
         await context.bot.delete_message(update.effective_chat.id, message)
 
 
-async def remove_button(update):
+async def remove_button(update, context):
     query = update.callback_query
 
     if str(query.data).startswith('rm'):
@@ -102,7 +102,7 @@ async def remove_button(update):
             await update.callback_query.answer('Это не ваше сообщение!')
             return
 
-        await update.callback_query.message.delete()
+        await context.bot.delete_message(query.message.chat_id, query.message.message_id)
 
 
 def init_handler(application):
