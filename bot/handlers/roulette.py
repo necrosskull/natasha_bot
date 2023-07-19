@@ -129,7 +129,7 @@ async def check_cooldown(user_id):
         cooldown = datetime.datetime.strptime(cooldown, '%Y-%m-%dT%H:%M:%S')
         time_diff = current_time - cooldown
 
-        if time_diff >= datetime.timedelta(minutes=1):
+        if time_diff >= datetime.timedelta(hours=1):
             cooldown = None
 
             await supabase.table('tg_ban_bot_games').update(
