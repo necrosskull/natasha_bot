@@ -99,3 +99,4 @@ def init_handler(application):
 
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('help', start))
+    application.add_handler(CommandHandler('rm', remove))
