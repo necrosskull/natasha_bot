@@ -45,10 +45,15 @@ async def handle_roulette_command(update, context):
     roulette_args = context.args
     number = int(roulette_args[0]) if roulette_args and roulette_args[0].isdigit() else random.randint(1, 6)
 
-    lives, score = await fetch.fetch_multiple_params(user_id, 'lives', 'score')
+    data = fetch.fetch_multiple_params(user_id, 'lives', 'score')
+
+    if data:
+        lives, score = data
+    else:
+        lives, score = None, None
 
     if lives == 0:
-        cooldown, time_diff = await check_cooldown(user_id)
+        cooldown, time_diff = check_cooldown(user_id)
 
         if cooldown:
             remaining_minutes = 60 - time_diff.seconds // 60
@@ -105,7 +110,7 @@ async def handle_roulette_command(update, context):
                                   parse_mode=constants.ParseMode.MARKDOWN, reply=True)
 
 
-async def check_cooldown(user_id):
+def check_cooldown(user_id):
     """
     Проверяет, есть ли у пользователя активный период охлаждения.
 
@@ -121,7 +126,7 @@ async def check_cooldown(user_id):
     указывающее, активно ли охлаждение, а второй элемент - разница времени, если охлаждение активно, или None.
     """
 
-    cooldown = await fetch.fetch_by_id(user_id, 'cooldown')
+    cooldown = fetch.fetch_by_id(user_id, 'cooldown')
 
     if cooldown:
         current_time = datetime.datetime.now()
@@ -166,7 +171,7 @@ async def handle_score_command(update, context):
 
     thread_id = update.message.message_thread_id if update.message.is_topic_message else None
 
-    score = await fetch.fetch_by_id(user_id, 'score')
+    score = fetch.fetch_by_id(user_id, 'score')
 
     message_text = f'💰 Ваш счёт: {score}' if score is not None else 'Вы еще не играли в рулетку'
 
@@ -234,9 +239,14 @@ async def unlock_timer(update, context):
     user_message_id = update.message.message_id
     thread_id = update.message.message_thread_id if update.message.is_topic_message else None
 
-    lives, score = await fetch.fetch_multiple_params(user_id, 'lives', 'score')
+    data = fetch.fetch_multiple_params(user_id, 'lives', 'score')
 
-    await check_cooldown(user_id)
+    if data:
+        lives, score = data
+    else:
+        lives, score = None, None
+
+    check_cooldown(user_id)
 
     if score is not None:
         if score < 10:

@@ -31,8 +31,8 @@ async def cock_game(update, context):
     user_id = update.message.from_user.id
     user_message_id = update.message.message_id
 
-    cock_time = await fetch.fetch_by_id(user_id, 'cock_time')
-    cock_time, time_left = await check_cock_time(user_id, cock_time)
+    cock_time = fetch.fetch_by_id(user_id, 'cock_time')
+    cock_time, time_left = check_cock_time(user_id, cock_time)
 
     if cock_time:
         message_text = f'❌ Узнавать новую длину хуя можно раз в сутки!\n' \
@@ -43,7 +43,7 @@ async def cock_game(update, context):
                                       parse_mode=constants.ParseMode.MARKDOWN, reply=True)
         return
 
-    cock_size = await fetch.fetch_by_id(user_id, 'cock')
+    cock_size = fetch.fetch_by_id(user_id, 'cock')
 
     modes = [cock_multiply(cock_size), cock_plus(cock_size)]
     new_size, msg, num = random.choices(modes, weights=[0.2, 0.8], k=1)[0]
@@ -67,7 +67,7 @@ async def cock_game(update, context):
         message_text = f"{sign} Твой хуй {msg}\n☠️ Теперь его размер *{new_size} cм.*" \
                        f"\n😈 Размер отпавшего был *{cock_size} см.*"
 
-        cockdrop = await fetch.fetch_by_id(user_id, 'cockdrop')
+        cockdrop = fetch.fetch_by_id(user_id, 'cockdrop')
 
         if cockdrop:
             if cock_size > cockdrop:
@@ -84,7 +84,7 @@ async def cock_game(update, context):
                                   parse_mode=constants.ParseMode.MARKDOWN, reply=True, delete=False)
 
 
-async def check_cock_time(user_id, cock_time):
+def check_cock_time(user_id, cock_time):
     """
     Проверяет, может ли пользователь сыграть в игру 'cock_game', исходя из времени последней игры.
     Если пользователь уже играл в игру в течение последних 24 часов, функция возвращает оставшееся время
@@ -182,8 +182,8 @@ async def my_cock(update, context):
     user_id = update.message.from_user.id
     user_message_id = update.message.message_id
 
-    cock_size = await fetch.fetch_by_id(user_id, 'cock')
-    cock_drop = await fetch.fetch_by_id(user_id, 'cockdrop')
+    cock_size = fetch.fetch_by_id(user_id, 'cock')
+    cock_drop = fetch.fetch_by_id(user_id, 'cockdrop')
 
     if cock_size is None:
         message_text = f"❌ У вас ещё нет хуя!\nИспользуйте /cock чтобы он у вас появился!"
@@ -220,9 +220,14 @@ async def buy_cock(update, context):
     thread_id = update.message.message_thread_id if update.message.is_topic_message else None
     user_message_id = update.message.message_id
 
-    score, cock_time = await fetch.fetch_multiple_params(user_id, 'score', 'cock_time')
+    data = fetch.fetch_multiple_params(user_id, 'score', 'cock_time')
 
-    cooldown = await check_cock_time(user_id, cock_time)
+    if data:
+        score, cock_time = data
+    else:
+        score, cock_time = None, None
+
+    cooldown = check_cock_time(user_id, cock_time)
 
     if cooldown is None:
         message_text = 'У тебя нет таймера, ебанат.'
@@ -277,7 +282,7 @@ async def cock_unlock(update, context):
 
     if str(user_id) == data_args[1]:
 
-        score = await fetch.fetch_by_id(user_id, 'score')
+        score = fetch.fetch_by_id(user_id, 'score')
 
         if score >= cock_price:
             button = data_args[0]
