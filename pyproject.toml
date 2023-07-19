@@ -4,14 +4,23 @@ version = "0.1.0"
 description = ""
 authors = ["Slava Kuryaev <92830706+necrosskull@users.noreply.github.com>"]
 readme = "README.md"
-packages = [{include = "natasha_bot"}]
+packages = [{ include = "natasha_bot" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
 python-dotenv = "^1.0.0"
-httpx = "^0.24.1"
-python-telegram-bot = {extras = ["job-queue"], version = "^20.4"}
+httpx = "0.24.1"
+python-telegram-bot = { extras = ["job-queue", "rate-limiter"], version = "20.4" }
+update = "^0.0.1"
 
+# force update httpx
+supafunc = {git = "https://github.com/supabase-community/functions-py.git"}
+supabase = {git = "https://github.com/necrosskull/supabase-py.git"}
+
+
+
+[tool.poetry.group.dev.dependencies]
+setuptools = "^68.0.0"
 
 [build-system]
 requires = ["poetry-core"]

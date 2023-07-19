@@ -6,10 +6,9 @@ from telegram.ext import CommandHandler
 
 import bot.config as config
 import bot.db.fetch as fetch
-import bot.db.supabase as supabase
 from bot.handlers.handler import send_and_delete_message
 
-supabase = supabase.Supabase()
+from bot.db.supabase import supabase
 
 
 async def handle_roulette_command(update, context):
@@ -46,8 +45,7 @@ async def handle_roulette_command(update, context):
     roulette_args = context.args
     number = int(roulette_args[0]) if roulette_args and roulette_args[0].isdigit() else random.randint(1, 6)
 
-    lives = await fetch.fetch_by_id(user_id, 'lives')
-    score = await fetch.fetch_by_id(user_id, 'score')
+    lives, score = await fetch.fetch_multiple_params(user_id, 'lives', 'score')
 
     if lives == 0:
         cooldown, time_diff = await check_cooldown(user_id)
@@ -74,27 +72,28 @@ async def handle_roulette_command(update, context):
 
     if number in result:
         new_score = score + 10 if score is not None else 10
-        await supabase.table('tg_ban_bot_games').update({'username': username,
-                                                         'score': new_score}).eq('id', user_id).execute()
+        supabase.table('tg_ban_bot_games').update({'username': username,
+                                                   'score': new_score}).eq('id', user_id).execute()
 
         message_text = 'Браво, вы выиграли!\n✅ Вам начислено *10* баллов'
 
     else:
         if lives is not None:
             new_lives = lives - 1
-            await supabase.table('tg_ban_bot_games').update({'username': username,
-                                                             'lives': new_lives}).eq('id', user_id).execute()
+            supabase.table('tg_ban_bot_games').update({'username': username,
+                                                       'lives': new_lives}).eq('id', user_id).execute()
             lives = new_lives
 
         else:
             lives = config.default_lives - 1
-            await supabase.table('tg_ban_bot_games').insert(
+            supabase.table('tg_ban_bot_games').insert(
                 {'id': user_id, 'username': username, 'lives': lives}).execute()
 
-        if lives == 0:
+        if lives == 0 or lives < 0:
             timestamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
 
-            await supabase.table('tg_ban_bot_games').update({'cooldown': timestamp}).eq('id', user_id).execute()
+            supabase.table('tg_ban_bot_games').update({'cooldown': timestamp, 'lives': 0}).eq('id',
+                                                                                              user_id).execute()
 
             message_text = f"💥 БАМ ТЫ СДОХ\n🚫 Все жизни потрачены, возвращайся через час\n" \
                            f"ℹ️ Вы можете разблокировать себя за 10 баллов используя /unlock"
@@ -132,7 +131,7 @@ async def check_cooldown(user_id):
         if time_diff >= datetime.timedelta(hours=1):
             cooldown = None
 
-            await supabase.table('tg_ban_bot_games').update(
+            supabase.table('tg_ban_bot_games').update(
                 {'lives': config.default_lives, 'cooldown': cooldown}).eq('id', user_id).execute()
 
             return False, None
@@ -197,10 +196,10 @@ async def handle_leaderboard_command(update, context):
     thread_id = update.message.message_thread_id if update.message.is_topic_message else None
     user_message_id = update.message.message_id
 
-    data = await supabase.table('tg_ban_bot_games').select('username, score, id').order_by('score.desc').limit(
+    response = supabase.table('tg_ban_bot_games').select('username, score, id').order('score', desc=True).limit(
         10).execute()
 
-    board = [(entry['username'], entry['score'], entry['id']) for entry in data]
+    board = [(entry['username'], entry['score'], entry['id']) for entry in response.data]
 
     formatted_board = '\n'.join(
         f"{index + 1}) [{username}](https://t.me/{username}) | *{score}*" for index, (username, score, user_id) in
@@ -235,8 +234,7 @@ async def unlock_timer(update, context):
     user_message_id = update.message.message_id
     thread_id = update.message.message_thread_id if update.message.is_topic_message else None
 
-    lives = await fetch.fetch_by_id(user_id, 'lives')
-    score = await fetch.fetch_by_id(user_id, 'score')
+    lives, score = await fetch.fetch_multiple_params(user_id, 'lives', 'score')
 
     await check_cooldown(user_id)
 
@@ -251,9 +249,9 @@ async def unlock_timer(update, context):
             else:
                 new_score = score - 10
                 cooldown = None
-                await supabase.table('tg_ban_bot_games').update({'score': new_score,
-                                                                 'lives': config.default_lives,
-                                                                 'cooldown': cooldown}).eq('id', user_id).execute()
+                supabase.table('tg_ban_bot_games').update({'score': new_score,
+                                                           'lives': config.default_lives,
+                                                           'cooldown': cooldown}).eq('id', user_id).execute()
                 message_text = f"✅ Вы успешно разблокировали себя\n" \
                                f"💰 Ваш счёт: *{new_score}*"
     else:

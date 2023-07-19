@@ -23,5 +23,8 @@ load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_USERNAME = os.getenv('SUPABASE_USERNAME')
+SUPABASE_PASSWORD = os.getenv('SUPABASE_PASSWORD')
+
 AUTHORIZED_USERS = os.getenv("AUTHORIZED_USERS").split(',')
 TZ = os.getenv("TZ")

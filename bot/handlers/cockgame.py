@@ -6,11 +6,10 @@ from telegram.ext import CommandHandler, ConversationHandler, CallbackQueryHandl
 
 import bot.config as config
 import bot.db.fetch as fetch
-import bot.db.supabase as supabase
 from bot.handlers.handler import send_and_delete_message
 from bot.handlers.scheduler import delete_message
 
-supabase = supabase.Supabase()
+from bot.db.supabase import supabase
 
 COCKUNLOCK = range(1)
 
@@ -32,7 +31,8 @@ async def cock_game(update, context):
     user_id = update.message.from_user.id
     user_message_id = update.message.message_id
 
-    cock_time, time_left = await check_cock_time(user_id)
+    cock_time = await fetch.fetch_by_id(user_id, 'cock_time')
+    cock_time, time_left = await check_cock_time(user_id, cock_time)
 
     if cock_time:
         message_text = f'❌ Узнавать новую длину хуя можно раз в сутки!\n' \
@@ -51,11 +51,11 @@ async def cock_game(update, context):
     timestamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
 
     if cock_size is not None:
-        await supabase.table('tg_ban_bot_games').update({'username': username, 'cock': new_size, 'cock_time': timestamp
-                                                         }).eq('id', user_id).execute()
+        supabase.table('tg_ban_bot_games').update({'username': username, 'cock': new_size, 'cock_time': timestamp
+                                                   }).eq('id', user_id).execute()
 
     else:
-        await supabase.table('tg_ban_bot_games').insert(
+        supabase.table('tg_ban_bot_games').insert(
             {'id': user_id, 'username': username, 'cock': new_size, 'cock_time': timestamp}).execute()
 
     if num > 0:
@@ -71,9 +71,9 @@ async def cock_game(update, context):
 
         if cockdrop:
             if cock_size > cockdrop:
-                await supabase.table('tg_ban_bot_games').update({'cockdrop': cock_size}).eq('id', user_id).execute()
+                supabase.table('tg_ban_bot_games').update({'cockdrop': cock_size}).eq('id', user_id).execute()
         else:
-            await supabase.table('tg_ban_bot_games').update({'cockdrop': cock_size}).eq('id', user_id).execute()
+            supabase.table('tg_ban_bot_games').update({'cockdrop': cock_size}).eq('id', user_id).execute()
 
     else:
         message_text = f"{sign} Твой хуй {msg}\n🍆 Теперь его размер *{new_size} cм.*" \
@@ -84,18 +84,17 @@ async def cock_game(update, context):
                                   parse_mode=constants.ParseMode.MARKDOWN, reply=True, delete=False)
 
 
-async def check_cock_time(user_id):
+async def check_cock_time(user_id, cock_time):
     """
     Проверяет, может ли пользователь сыграть в игру 'cock_game', исходя из времени последней игры.
     Если пользователь уже играл в игру в течение последних 24 часов, функция возвращает оставшееся время
     до следующей возможности игры. Если пользователь еще не играл в игру, функция возвращает None.
+    :param cock_time:
     :param user_id: Идентификатор пользователя для проверки времени ожидания игры.
     :return: Кортеж, в котором первый элемент является логическим значением (True, если пользователь не может играть,
              False - в противном случае), а второй элемент - строка с отформатированным временем до следующей игры,
              либо None, если пользователь еще не играл.
     """
-
-    cock_time = await fetch.fetch_by_id(user_id, 'cock_time')
 
     if cock_time is not None:
 
@@ -105,7 +104,7 @@ async def check_cock_time(user_id):
 
         if time_diff >= datetime.timedelta(hours=24):
             cock_time = None
-            await supabase.table('tg_ban_bot_games').update({'cock_time': cock_time}).eq('id', user_id).execute()
+            supabase.table('tg_ban_bot_games').update({'cock_time': cock_time}).eq('id', user_id).execute()
 
             return False, None
 
@@ -221,8 +220,9 @@ async def buy_cock(update, context):
     thread_id = update.message.message_thread_id if update.message.is_topic_message else None
     user_message_id = update.message.message_id
 
-    cooldown = await check_cock_time(user_id)
-    score = await fetch.fetch_by_id(user_id, 'score')
+    score, cock_time = await fetch.fetch_multiple_params(user_id, 'score', 'cock_time')
+
+    cooldown = await check_cock_time(user_id, cock_time)
 
     if cooldown is None:
         message_text = 'У тебя нет таймера, ебанат.'
@@ -285,8 +285,8 @@ async def cock_unlock(update, context):
             if button == 'buy':
                 cooldown = None
                 new_score = score - cock_price
-                await supabase.table('tg_ban_bot_games').update({'cock_time': cooldown,
-                                                                 'score': new_score}).eq('id', user_id).execute()
+                supabase.table('tg_ban_bot_games').update({'cock_time': cooldown,
+                                                           'score': new_score}).eq('id', user_id).execute()
 
                 message = await query.edit_message_text(text=f"✅ Вы успешно обнулили таймер!\nИспользуй /cock")
 
@@ -320,12 +320,12 @@ async def send_leaderboard(update, context, desc=False):
     thread_id = update.message.message_thread_id if update.message.is_topic_message else None
     user_message_id = update.message.message_id
 
-    sort = 'desc' if desc else 'asc'
+    sort = True if desc else False
 
-    data = await supabase.table('tg_ban_bot_games').select('username, cock, id'). \
-        order_by(f'cock.{sort}').limit(10).execute()
+    response = supabase.table('tg_ban_bot_games').select('username, cock, id'). \
+        order('cock', desc=sort).limit(10).execute()
 
-    board = [(entry['username'], entry['cock'], entry['id']) for entry in data]
+    board = [(entry['username'], entry['cock'], entry['id']) for entry in response.data]
 
     formatted_board = '\n'.join(
         f"{index + 1}) [{username}](https://t.me/{username}) | *{cock} см.*" for index, (username, cock, user_id) in
