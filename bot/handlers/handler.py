@@ -122,4 +122,4 @@ def init_handler(application):
     application.add_handler(CommandHandler('start', start, block=False))
     application.add_handler(CommandHandler('help', start, block=False))
     application.add_handler(CommandHandler('rm', remove, block=False))
-    application.add_handler(CallbackQueryHandler(remove_button, block=False))
+    application.add_handler(CallbackQueryHandler(remove_button, pattern='^rm', block=False))
