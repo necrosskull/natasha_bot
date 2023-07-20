@@ -26,5 +26,6 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPABASE_USERNAME = os.getenv('SUPABASE_USERNAME')
 SUPABASE_PASSWORD = os.getenv('SUPABASE_PASSWORD')
 
+BANNED = [int(i) for i in os.getenv("BANNED").split(",")]
 AUTHORIZED_USERS = os.getenv("AUTHORIZED_USERS").split(',')
 TZ = os.getenv("TZ")

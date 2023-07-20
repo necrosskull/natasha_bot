@@ -1,5 +1,5 @@
 from telegram import constants, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import CommandHandler, ContextTypes, CallbackQueryHandler
+from telegram.ext import CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters
 
 import bot.config as config
 import bot.handlers.scheduler as scheduler
@@ -105,6 +105,10 @@ async def remove_button(update, context):
         await context.bot.delete_message(query.message.chat_id, query.message.message_id)
 
 
+async def for_banned(update, context):
+    return
+
+
 def init_handler(application):
     """
      Инициализирует и добавляет обработчики команд для приложения.
@@ -118,7 +122,7 @@ def init_handler(application):
      Возвращает:
          None
      """
-
+    application.add_handler(MessageHandler(filters.User(user_id=config.BANNED), for_banned, block=False))
     application.add_handler(CommandHandler('start', start, block=False))
     application.add_handler(CommandHandler('help', start, block=False))
     application.add_handler(CommandHandler('rm', remove, block=False))
