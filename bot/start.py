@@ -1,4 +1,4 @@
-from telegram.ext import Application, AIORateLimiter
+from telegram.ext import Application
 
 import bot.config as config
 import bot.handlers.handler as handler
@@ -13,7 +13,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 def main():
     application = Application.builder().token(config.TELEGRAM_TOKEN).post_init(
-        post_init=post_init).rate_limiter(AIORateLimiter()).build()
+        post_init=post_init).build()
 
     roulette.init_handler(application)
     handler.init_handler(application)

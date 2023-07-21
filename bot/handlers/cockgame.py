@@ -131,7 +131,7 @@ def cock_plus(cock_size):
              и число, указывающее изменение (положительное значение, когда размер увеличивается).
     """
 
-    num = random.choices([random.randint(1, 20), random.randint(-20, -1)], weights=[0.8, 0.1], k=1)[0]
+    num = random.choices([random.randint(1, 20), random.randint(-20, -1)], weights=[0.8, 0.2], k=1)[0]
     if num < 0:
         if cock_size >= 100 and random.random() < 0.1:
             new_size = 0

@@ -45,26 +45,24 @@ async def handle_roulette_command(update, context):
     roulette_args = context.args
     number = int(roulette_args[0]) if roulette_args and roulette_args[0].isdigit() else random.randint(1, 6)
 
+    cooldown, time_diff = check_cooldown(user_id)
+
+    if cooldown:
+        remaining_minutes = 60 - time_diff.seconds // 60
+        message_text = f'☠️ Полегче, ты своё отстрелял, пойди пока потрогай траву!\n' \
+                       f'🕐 Осталось {remaining_minutes} минут\n' \
+                       f'ℹ️ Вы можете разблокировать себя за 10 баллов используя /unlock'
+        await send_and_delete_message(context, update.effective_chat.id, thread_id, user_message_id,
+                                      message_text,
+                                      parse_mode=constants.ParseMode.MARKDOWN, reply=True)
+        return
+
     data = fetch.fetch_multiple_params(user_id, 'lives', 'score')
 
     if data:
         lives, score = data
     else:
         lives, score = None, None
-
-    if lives == 0:
-        cooldown, time_diff = check_cooldown(user_id)
-
-        if cooldown:
-            remaining_minutes = 60 - time_diff.seconds // 60
-            message_text = f'☠️ Полегче, ты своё отстрелял, пойди пока потрогай траву!\n' \
-                           f'🕐 Осталось {remaining_minutes} минут\n' \
-                           f'ℹ️ Вы можете разблокировать себя за 10 баллов используя /unlock'
-
-            await send_and_delete_message(context, update.effective_chat.id, thread_id, user_message_id,
-                                          message_text,
-                                          parse_mode=constants.ParseMode.MARKDOWN, reply=True)
-            return
 
     if number > 6 or number < 1:
         message_text = 'Неверное число, введите число от 1 до 6'
@@ -84,6 +82,7 @@ async def handle_roulette_command(update, context):
 
     else:
         if lives is not None:
+
             new_lives = lives - 1
             supabase.table('tg_ban_bot_games').update({'username': username,
                                                        'lives': new_lives}).eq('id', user_id).execute()
@@ -239,14 +238,14 @@ async def unlock_timer(update, context):
     user_message_id = update.message.message_id
     thread_id = update.message.message_thread_id if update.message.is_topic_message else None
 
+    check_cooldown(user_id)
+
     data = fetch.fetch_multiple_params(user_id, 'lives', 'score')
 
     if data:
         lives, score = data
     else:
         lives, score = None, None
-
-    check_cooldown(user_id)
 
     if score is not None:
         if score < 10:
