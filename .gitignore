@@ -160,3 +160,4 @@ cython_debug/
 .idea/
 bot/handlers/main.py
 bot/tests.py
+bot/db/tg_bot.db
