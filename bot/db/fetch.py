@@ -1,19 +1,29 @@
-from bot.db.supabase import supabase
+from peewee import DoesNotExist
+
+from bot.db.sqlite import TgBotGame, db
 
 
-def fetch_by_id(user_id, column_name):
-    response = supabase.table('tg_ban_bot_games').select(column_name).eq('id', user_id).execute()
+def get_value_by_id(user_id, key):
+    db.connect()
+    try:
+        game = TgBotGame.get_by_id(user_id)
+        return getattr(game, key, None)
 
-    if response.data:
-        return response.data[0][column_name]
-    else:
+    except DoesNotExist:
         return None
 
+    finally:
+        db.close()
 
-def fetch_multiple_params(user_id, *columns):
-    response = supabase.table('tg_ban_bot_games').select(*columns).eq('id', user_id).execute()
-    if response.data:
-        data = (response.data[0].values())
-        return data
-    else:
+
+def get_values_by_id(user_id, *keys):
+    db.connect()
+    try:
+        game = TgBotGame.get_by_id(user_id)
+        values = tuple(getattr(game, key, None) for key in keys)
+        return values
+    except DoesNotExist:
         return None
+
+    finally:
+        db.close()

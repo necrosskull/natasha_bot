@@ -9,15 +9,9 @@ packages = [{ include = "natasha_bot" }]
 [tool.poetry.dependencies]
 python = "^3.11"
 python-dotenv = "^1.0.0"
-httpx = "0.24.1"
 python-telegram-bot = { extras = ["job-queue", "rate-limiter"], version = "20.4" }
 update = "^0.0.1"
-
-# force update httpx
-supafunc = {git = "https://github.com/supabase-community/functions-py.git"}
-supabase = {git = "https://github.com/necrosskull/supabase-py.git"}
-
-
+peewee = "^3.16.2"
 
 [tool.poetry.group.dev.dependencies]
 setuptools = "^68.0.0"

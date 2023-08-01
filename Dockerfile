@@ -18,6 +18,11 @@ COPY pyproject.toml poetry.lock ./
 # Install dependencies
 RUN poetry install --no-dev --no-root --no-interaction --no-ansi
 
+# Check if the database file exists and then copy it
+RUN if [ -e "./bot/db/tg_bot.db" ]; then \
+        cp ./bot/db/tg_bot.db /app/bot/db/tg_bot.db; \
+    fi
+
 # Copy the rest of the project
 COPY . .
 

@@ -16,7 +16,7 @@ delete_timer = 30
 sleep_secs = 1
 cock_price = 40
 default_lives = 3
-unlock_price = 10
+# unlock_price = 10
 
 load_dotenv()
 

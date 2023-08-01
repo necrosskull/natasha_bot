@@ -9,7 +9,7 @@ import bot.db.fetch as fetch
 from bot.handlers.handler import send_and_delete_message
 from bot.handlers.scheduler import delete_message
 
-from bot.db.supabase import supabase
+from bot.db.sqlite import TgBotGame, db
 
 COCKUNLOCK = range(1)
 
@@ -31,7 +31,7 @@ async def cock_game(update, context):
     user_id = update.message.from_user.id
     user_message_id = update.message.message_id
 
-    cock_time = fetch.fetch_by_id(user_id, 'cock_time')
+    cock_time = fetch.get_value_by_id(user_id, 'cock_time')
     cock_time, time_left = check_cock_time(user_id, cock_time)
 
     if cock_time:
@@ -43,20 +43,33 @@ async def cock_game(update, context):
                                       parse_mode=constants.ParseMode.MARKDOWN)
         return
 
-    cock_size = fetch.fetch_by_id(user_id, 'cock')
+    cock_size = fetch.get_value_by_id(user_id, 'cock')
 
     modes = [cock_multiply(cock_size), cock_plus(cock_size)]
     new_size, msg, num = random.choices(modes, weights=[0.2, 0.8], k=1)[0]
 
-    timestamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    timestamp = datetime.datetime.now()
 
     if cock_size is not None:
-        supabase.table('tg_ban_bot_games').update({'username': username, 'cock': new_size, 'cock_time': timestamp
-                                                   }).eq('id', user_id).execute()
+
+        db.connect()
+        table = TgBotGame.get_by_id(user_id)
+        table.username = username
+        table.cock = new_size
+        table.cock_time = timestamp
+        table.save()
+        db.close()
 
     else:
-        supabase.table('tg_ban_bot_games').insert(
-            {'id': user_id, 'username': username, 'cock': new_size, 'cock_time': timestamp}).execute()
+
+        db.connect()
+        TgBotGame.create(
+            id=user_id,
+            username=username,
+            cock=new_size,
+            cock_time=timestamp
+        )
+        db.close()
 
     if num > 0:
         sign = "📈"
@@ -67,13 +80,23 @@ async def cock_game(update, context):
         message_text = f"{sign} Твой хуй {msg}\n☠️ Теперь его размер *{new_size} cм.*" \
                        f"\n😈 Размер отпавшего был *{cock_size} см.*"
 
-        cockdrop = fetch.fetch_by_id(user_id, 'cockdrop')
+        cockdrop = fetch.get_value_by_id(user_id, 'cockdrop')
 
-        if cockdrop:
+        if cockdrop is not None:
             if cock_size > cockdrop:
-                supabase.table('tg_ban_bot_games').update({'cockdrop': cock_size}).eq('id', user_id).execute()
+                db.connect()
+                table = TgBotGame.get_by_id(user_id)
+                table.cockdrop = cock_size
+                table.save()
+                db.close()
+
         else:
-            supabase.table('tg_ban_bot_games').update({'cockdrop': cock_size}).eq('id', user_id).execute()
+
+            db.connect()
+            table = TgBotGame.get_by_id(user_id)
+            table.cockdrop = cock_size
+            table.save()
+            db.close()
 
     else:
         message_text = f"{sign} Твой хуй {msg}\n🍆 Теперь его размер *{new_size} cм.*" \
@@ -99,12 +122,16 @@ def check_cock_time(user_id, cock_time):
     if cock_time is not None:
 
         current_time = datetime.datetime.now()
-        cock_time = datetime.datetime.strptime(cock_time, '%Y-%m-%dT%H:%M:%S')
         time_diff = current_time - cock_time
 
         if time_diff >= datetime.timedelta(hours=24):
             cock_time = None
-            supabase.table('tg_ban_bot_games').update({'cock_time': cock_time}).eq('id', user_id).execute()
+
+            db.connect()
+            table = TgBotGame.get_by_id(user_id)
+            table.cock_time = cock_time
+            table.save()
+            db.close()
 
             return False, None
 
@@ -133,7 +160,7 @@ def cock_plus(cock_size):
 
     num = random.choices([random.randint(1, 20), random.randint(-20, -1)], weights=[0.8, 0.2], k=1)[0]
     if num < 0:
-        if cock_size >= 100 and random.random() < 0.1:
+        if cock_size and cock_size >= 100 and random.random() < 0.3:
             new_size = 0
             msg = f"*отвалился к хуям...*"
             num = 0
@@ -182,8 +209,8 @@ async def my_cock(update, context):
     user_id = update.message.from_user.id
     user_message_id = update.message.message_id
 
-    cock_size = fetch.fetch_by_id(user_id, 'cock')
-    cock_drop = fetch.fetch_by_id(user_id, 'cockdrop')
+    cock_size = fetch.get_value_by_id(user_id, 'cock')
+    cock_drop = fetch.get_value_by_id(user_id, 'cockdrop')
 
     if cock_size is None:
         message_text = f"❌ У вас ещё нет хуя!\nИспользуйте /cock чтобы он у вас появился!"
@@ -220,7 +247,7 @@ async def buy_cock(update, context):
     thread_id = update.message.message_thread_id if update.message.is_topic_message else None
     user_message_id = update.message.message_id
 
-    data = fetch.fetch_multiple_params(user_id, 'score', 'cock_time')
+    data = fetch.get_values_by_id(user_id, 'score', 'cock_time')
 
     if data:
         score, cock_time = data
@@ -285,7 +312,7 @@ async def cock_unlock(update, context):
 
     if str(user_id) == data_args[1]:
 
-        score = fetch.fetch_by_id(user_id, 'score')
+        score = fetch.get_value_by_id(user_id, 'score')
 
         if score >= cock_price:
             button = data_args[0]
@@ -293,8 +320,13 @@ async def cock_unlock(update, context):
             if button == 'buy':
                 cooldown = None
                 new_score = score - cock_price
-                supabase.table('tg_ban_bot_games').update({'cock_time': cooldown,
-                                                           'score': new_score}).eq('id', user_id).execute()
+
+                db.connect()
+                table = TgBotGame.get_by_id(user_id)
+                table.cock_time = cooldown
+                table.score = new_score
+                table.save()
+                db.close()
 
                 message = await query.edit_message_text(text=f"✅ Вы успешно обнулили таймер!\nИспользуй /cock")
 
@@ -330,10 +362,11 @@ async def send_leaderboard(update, context, desc=False):
 
     sort = True if desc else False
 
-    response = supabase.table('tg_ban_bot_games').select('username, cock, id'). \
-        order('cock', desc=sort).limit(10).execute()
-
-    board = [(entry['username'], entry['cock'], entry['id']) for entry in response.data]
+    db.connect()
+    order_func = TgBotGame.cock.desc() if sort else TgBotGame.cock.asc()
+    response = TgBotGame.select().order_by(order_func).limit(10)
+    board = [(entry.username, entry.cock, entry.id) for entry in response]
+    db.close()
 
     formatted_board = '\n'.join(
         f"{index + 1}) [{username}](https://t.me/{username}) | *{cock} см.*" for index, (username, cock, user_id) in

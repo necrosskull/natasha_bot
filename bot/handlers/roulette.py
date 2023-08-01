@@ -8,7 +8,7 @@ import bot.config as config
 import bot.db.fetch as fetch
 from bot.handlers.handler import send_and_delete_message
 
-from bot.db.supabase import supabase
+from bot.db.sqlite import TgBotGame, db
 
 
 async def handle_roulette_command(update, context):
@@ -50,14 +50,13 @@ async def handle_roulette_command(update, context):
     if cooldown:
         remaining_minutes = 60 - time_diff.seconds // 60
         message_text = f'☠️ Полегче, ты своё отстрелял, пойди пока потрогай траву!\n' \
-                       f'🕐 Осталось {remaining_minutes} минут\n' \
-                       f'ℹ️ Вы можете разблокировать себя за 10 баллов используя /unlock'
+                       f'🕐 Осталось {remaining_minutes} минут\n'
         await send_and_delete_message(context, update.effective_chat.id, thread_id, user_message_id,
                                       message_text,
                                       parse_mode=constants.ParseMode.MARKDOWN, reply=True)
         return
 
-    data = fetch.fetch_multiple_params(user_id, 'lives', 'score')
+    data = fetch.get_values_by_id(user_id, 'lives', 'score')
 
     if data:
         lives, score = data
@@ -75,8 +74,25 @@ async def handle_roulette_command(update, context):
 
     if number in result:
         new_score = score + 10 if score is not None else 10
-        supabase.table('tg_ban_bot_games').update({'username': username,
-                                                   'score': new_score}).eq('id', user_id).execute()
+
+        if lives is not None:
+
+            db.connect()
+            table = TgBotGame.get_by_id(user_id)
+            table.score = new_score
+            table.username = username
+            table.save()
+            db.close()
+
+        else:
+
+            db.connect()
+            TgBotGame.create(
+                id=user_id,
+                score=new_score,
+                username=username
+            )
+            db.close()
 
         message_text = 'Браво, вы выиграли!\n✅ Вам начислено *10* баллов'
 
@@ -84,23 +100,40 @@ async def handle_roulette_command(update, context):
         if lives is not None:
 
             new_lives = lives - 1
-            supabase.table('tg_ban_bot_games').update({'username': username,
-                                                       'lives': new_lives}).eq('id', user_id).execute()
+
+            db.connect()
+            table = TgBotGame.get_by_id(user_id)
+            table.lives = new_lives
+            table.username = username
+            table.save()
+            db.close()
+
             lives = new_lives
 
         else:
             lives = config.default_lives - 1
-            supabase.table('tg_ban_bot_games').insert(
-                {'id': user_id, 'username': username, 'lives': lives}).execute()
+
+            db.connect()
+            table = TgBotGame.create(
+                id=user_id,
+                lives=lives,
+                username=username
+            )
+            table.save()
+            db.close()
 
         if lives == 0 or lives < 0:
-            timestamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+            timestamp = datetime.datetime.now()
 
-            supabase.table('tg_ban_bot_games').update({'cooldown': timestamp, 'lives': 0}).eq('id',
-                                                                                              user_id).execute()
+            db.connect()
+            table = TgBotGame.get_by_id(user_id)
+            table.cooldown = timestamp
+            table.username = username
+            table.lives = 0
+            table.save()
+            db.close()
 
-            message_text = f"💥 БАМ ТЫ СДОХ\n🚫 Все жизни потрачены, возвращайся через час\n" \
-                           f"ℹ️ Вы можете разблокировать себя за 10 баллов используя /unlock"
+            message_text = f"💥 БАМ ТЫ СДОХ\n🚫 Все жизни потрачены, возвращайся через час!\n"
 
         else:
             message_text = f"💥 БАМ ТЫ СДОХ\nОсталось жизней: {lives}"
@@ -125,18 +158,21 @@ def check_cooldown(user_id):
     указывающее, активно ли охлаждение, а второй элемент - разница времени, если охлаждение активно, или None.
     """
 
-    cooldown = fetch.fetch_by_id(user_id, 'cooldown')
+    cooldown = fetch.get_value_by_id(user_id, 'cooldown')
 
     if cooldown:
         current_time = datetime.datetime.now()
-        cooldown = datetime.datetime.strptime(cooldown, '%Y-%m-%dT%H:%M:%S')
         time_diff = current_time - cooldown
 
         if time_diff >= datetime.timedelta(hours=1):
             cooldown = None
 
-            supabase.table('tg_ban_bot_games').update(
-                {'lives': config.default_lives, 'cooldown': cooldown}).eq('id', user_id).execute()
+            db.connect()
+            table = TgBotGame.get_by_id(user_id)
+            table.cooldown = cooldown
+            table.lives = config.default_lives
+            table.save()
+            db.close()
 
             return False, None
 
@@ -170,7 +206,7 @@ async def handle_score_command(update, context):
 
     thread_id = update.message.message_thread_id if update.message.is_topic_message else None
 
-    score = fetch.fetch_by_id(user_id, 'score')
+    score = fetch.get_value_by_id(user_id, 'score')
 
     message_text = f'💰 Ваш счёт: {score}' if score is not None else 'Вы еще не играли в рулетку'
 
@@ -200,10 +236,10 @@ async def handle_leaderboard_command(update, context):
     thread_id = update.message.message_thread_id if update.message.is_topic_message else None
     user_message_id = update.message.message_id
 
-    response = supabase.table('tg_ban_bot_games').select('username, score, id').order('score', desc=True).limit(
-        10).execute()
-
-    board = [(entry['username'], entry['score'], entry['id']) for entry in response.data]
+    db.connect()
+    response = TgBotGame.select().order_by(TgBotGame.score.desc()).limit(10)
+    board = [(entry.username, entry.score, entry.id) for entry in response]
+    db.close()
 
     formatted_board = '\n'.join(
         f"{index + 1}) [{username}](https://t.me/{username}) | *{score}*" for index, (username, score, user_id) in
@@ -215,60 +251,60 @@ async def handle_leaderboard_command(update, context):
                                   parse_mode=constants.ParseMode.MARKDOWN, disable_web_page_preview=True)
 
 
-async def unlock_timer(update, context):
-    """
-    Обрабатывает команду '/unlock_timer' для разблокировки таймера
-
-    Эта функция проверяет, имеет ли пользователь право на разблокировку таймера, и получает таймер из базы данных.
-    Если таймер найден, она отправляет пользователю сообщение с его текущим таймером. Если пользователь еще не играл в
-    рулетку, она отправляет сообщение, указывая, что он еще не играл.
-
-    Аргументы:
-        update (telegram.Update): Входящее обновление от Telegram.
-        context (telegram.ext.CallbackContext): Контекст для текущего обновления.
-
-    Возвращает:
-        None
-    """
-    chat_id = str(update.message.chat.id)
-    if chat_id not in config.AUTHORIZED_USERS:
-        return
-
-    user_id = update.message.from_user.id
-    user_message_id = update.message.message_id
-    thread_id = update.message.message_thread_id if update.message.is_topic_message else None
-
-    check_cooldown(user_id)
-
-    data = fetch.fetch_multiple_params(user_id, 'lives', 'score')
-
-    if data:
-        lives, score = data
-    else:
-        lives, score = None, None
-
-    if score is not None:
-        if score < 10:
-            message_text = f"🚫 У вас недостаточно баллов для разблокировки\n" \
-                           f"💵 Стоимость разблокировки: 10 баллов\n" \
-                           f"💰 Ваш счёт: *{score}*"
-        else:
-            if lives > 0:
-                message_text = f"⚡ У тебя ещё есть жизни, дурак?\n"
-            else:
-                new_score = score - 10
-                cooldown = None
-                supabase.table('tg_ban_bot_games').update({'score': new_score,
-                                                           'lives': config.default_lives,
-                                                           'cooldown': cooldown}).eq('id', user_id).execute()
-                message_text = f"✅ Вы успешно разблокировали себя\n" \
-                               f"💰 Ваш счёт: *{new_score}*"
-    else:
-        message_text = f"🚫 Вы еще не играли в рулетку"
-
-    await send_and_delete_message(context, update.effective_chat.id, thread_id, user_message_id,
-                                  message_text,
-                                  parse_mode=constants.ParseMode.MARKDOWN, reply=True)
+# async def unlock_timer(update, context):
+#     """
+#     Обрабатывает команду '/unlock_timer' для разблокировки таймера
+#
+#     Эта функция проверяет, имеет ли пользователь право на разблокировку таймера, и получает таймер из базы данных.
+#     Если таймер найден, она отправляет пользователю сообщение с его текущим таймером. Если пользователь еще не играл в
+#     рулетку, она отправляет сообщение, указывая, что он еще не играл.
+#
+#     Аргументы:
+#         update (telegram.Update): Входящее обновление от Telegram.
+#         context (telegram.ext.CallbackContext): Контекст для текущего обновления.
+#
+#     Возвращает:
+#         None
+#     """
+#     chat_id = str(update.message.chat.id)
+#     if chat_id not in config.AUTHORIZED_USERS:
+#         return
+#
+#     user_id = update.message.from_user.id
+#     user_message_id = update.message.message_id
+#     thread_id = update.message.message_thread_id if update.message.is_topic_message else None
+#
+#     check_cooldown(user_id)
+#
+#     data = fetch.fetch_multiple_params(user_id, 'lives', 'score')
+#
+#     if data:
+#         lives, score = data
+#     else:
+#         lives, score = None, None
+#
+#     if score is not None:
+#         if score < 10:
+#             message_text = f"🚫 У вас недостаточно баллов для разблокировки\n" \
+#                            f"💵 Стоимость разблокировки: 10 баллов\n" \
+#                            f"💰 Ваш счёт: *{score}*"
+#         else:
+#             if lives > 0:
+#                 message_text = f"⚡ У тебя ещё есть жизни, дурак?\n"
+#             else:
+#                 new_score = score - 10
+#                 cooldown = None
+#                 supabase.table('tg_ban_bot_games').update({'score': new_score,
+#                                                            'lives': config.default_lives,
+#                                                            'cooldown': cooldown}).eq('id', user_id).execute()
+#                 message_text = f"✅ Вы успешно разблокировали себя\n" \
+#                                f"💰 Ваш счёт: *{new_score}*"
+#     else:
+#         message_text = f"🚫 Вы еще не играли в рулетку"
+#
+#     await send_and_delete_message(context, update.effective_chat.id, thread_id, user_message_id,
+#                                   message_text,
+#                                   parse_mode=constants.ParseMode.MARKDOWN, reply=True)
 
 
 def init_handler(application):
@@ -288,4 +324,4 @@ def init_handler(application):
     application.add_handler(CommandHandler('roulette', handle_roulette_command, block=False))
     application.add_handler(CommandHandler('score', handle_score_command, block=False))
     application.add_handler(CommandHandler('leaderboard', handle_leaderboard_command, block=False))
-    application.add_handler(CommandHandler('unlock', unlock_timer, block=False))
+    # application.add_handler(CommandHandler('unlock', unlock_timer, block=False))
