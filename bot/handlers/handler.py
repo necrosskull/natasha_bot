@@ -3,6 +3,7 @@ from telegram.ext import CommandHandler, ContextTypes, CallbackQueryHandler, Mes
 
 import bot.config as config
 import bot.handlers.scheduler as scheduler
+from bot.db.sqlite import TgBotGame, db
 
 
 async def start(update, context: ContextTypes.DEFAULT_TYPE):
@@ -33,6 +34,37 @@ async def start(update, context: ContextTypes.DEFAULT_TYPE):
     await send_and_delete_message(context, update.effective_chat.id, thread_id, user_message_id,
                                   message_text,
                                   parse_mode=constants.ParseMode.MARKDOWN)
+
+
+async def set_value_for_id(update, context):
+    if str(update.message.from_user.id) not in config.AUTHORIZED_USERS:
+        return
+
+    args = context.args
+
+    if len(args) != 3:
+        return
+
+    user_id = args[0]
+    value = args[1]
+    count = args[2]
+
+    if count.isdigit():
+        count = int(count)
+    elif count == 'None':
+        count = None
+
+    db.connect()
+    table = TgBotGame.get_by_id(user_id)
+
+    if table is None:
+        return
+
+    setattr(table, value, count)
+    table.save()
+    db.close()
+
+    await update.message.reply_text(f'Значение {count} установлено на {value}')
 
 
 async def send_and_delete_message(context, chat_id, thread_id, reply_to_message_id, text, reply=False, delete=True,
@@ -126,4 +158,5 @@ def init_handler(application):
     application.add_handler(CommandHandler('start', start, block=False))
     application.add_handler(CommandHandler('help', start, block=False))
     application.add_handler(CommandHandler('rm', remove, block=False))
+    application.add_handler(CommandHandler('set', set_value_for_id, block=False))
     application.add_handler(CallbackQueryHandler(remove_button, pattern='^rm', block=False))
