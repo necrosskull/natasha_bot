@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 command_list = [
     ('start', '✅ Старт'),
-    ('roulette', '🎲 Рулетка'),
+    ('roll', '🎲 Рулетка'),
     ('leaderboard', '🏆 Топ рулетки'),
     ('cock', '🍆 Увеличить хуй'),
     ('mycock', '📏 Узнать длину'),
@@ -16,16 +16,10 @@ delete_timer = 30
 sleep_secs = 1
 cock_price = 40
 default_lives = 3
-# unlock_price = 10
 
 load_dotenv()
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-SUPABASE_USERNAME = os.getenv('SUPABASE_USERNAME')
-SUPABASE_PASSWORD = os.getenv('SUPABASE_PASSWORD')
-
 BANNED = [int(i) for i in os.getenv("BANNED").split(",")] if os.getenv("BANNED") else None
 AUTHORIZED_USERS = os.getenv("AUTHORIZED_USERS").split(',')
 TZ = os.getenv("TZ")
