@@ -272,7 +272,7 @@ def init_handler(application):
         None
     """
 
-    application.add_handler(CommandHandler('roulette', handle_roulette_command, block=False))
+    application.add_handler(CommandHandler(['roulette', 'roll'], handle_roulette_command, block=False))
     application.add_handler(CommandHandler('score', handle_score_command, block=False))
     application.add_handler(CommandHandler('leaderboard', handle_leaderboard_command, block=False))
     application.add_handler(
