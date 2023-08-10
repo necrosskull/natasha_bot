@@ -1,14 +1,17 @@
 import datetime
 import random
+import re
 
 from telegram import constants
-from telegram.ext import CommandHandler
+from telegram.ext import CommandHandler, filters, MessageHandler
 
 import bot.config as config
 import bot.db.fetch as fetch
 from bot.handlers.handler import send_and_delete_message
 
 from bot.db.sqlite import TgBotGame, db
+
+roulette = re.compile(r'^/ro', re.IGNORECASE)
 
 
 async def handle_roulette_command(update, context):
@@ -251,60 +254,8 @@ async def handle_leaderboard_command(update, context):
                                   parse_mode=constants.ParseMode.MARKDOWN, disable_web_page_preview=True)
 
 
-# async def unlock_timer(update, context):
-#     """
-#     Обрабатывает команду '/unlock_timer' для разблокировки таймера
-#
-#     Эта функция проверяет, имеет ли пользователь право на разблокировку таймера, и получает таймер из базы данных.
-#     Если таймер найден, она отправляет пользователю сообщение с его текущим таймером. Если пользователь еще не играл в
-#     рулетку, она отправляет сообщение, указывая, что он еще не играл.
-#
-#     Аргументы:
-#         update (telegram.Update): Входящее обновление от Telegram.
-#         context (telegram.ext.CallbackContext): Контекст для текущего обновления.
-#
-#     Возвращает:
-#         None
-#     """
-#     chat_id = str(update.message.chat.id)
-#     if chat_id not in config.AUTHORIZED_USERS:
-#         return
-#
-#     user_id = update.message.from_user.id
-#     user_message_id = update.message.message_id
-#     thread_id = update.message.message_thread_id if update.message.is_topic_message else None
-#
-#     check_cooldown(user_id)
-#
-#     data = fetch.fetch_multiple_params(user_id, 'lives', 'score')
-#
-#     if data:
-#         lives, score = data
-#     else:
-#         lives, score = None, None
-#
-#     if score is not None:
-#         if score < 10:
-#             message_text = f"🚫 У вас недостаточно баллов для разблокировки\n" \
-#                            f"💵 Стоимость разблокировки: 10 баллов\n" \
-#                            f"💰 Ваш счёт: *{score}*"
-#         else:
-#             if lives > 0:
-#                 message_text = f"⚡ У тебя ещё есть жизни, дурак?\n"
-#             else:
-#                 new_score = score - 10
-#                 cooldown = None
-#                 supabase.table('tg_ban_bot_games').update({'score': new_score,
-#                                                            'lives': config.default_lives,
-#                                                            'cooldown': cooldown}).eq('id', user_id).execute()
-#                 message_text = f"✅ Вы успешно разблокировали себя\n" \
-#                                f"💰 Ваш счёт: *{new_score}*"
-#     else:
-#         message_text = f"🚫 Вы еще не играли в рулетку"
-#
-#     await send_and_delete_message(context, update.effective_chat.id, thread_id, user_message_id,
-#                                   message_text,
-#                                   parse_mode=constants.ParseMode.MARKDOWN, reply=True)
+async def handle_retards(update, context):
+    await context.bot.delete_message(update.effective_chat.id, update.message.message_id)
 
 
 def init_handler(application):
@@ -321,7 +272,8 @@ def init_handler(application):
         None
     """
 
-    application.add_handler(CommandHandler('roulette', handle_roulette_command, block=False))
+    application.add_handler(CommandHandler(['roulette', 'roll'], handle_roulette_command, block=False))
     application.add_handler(CommandHandler('score', handle_score_command, block=False))
     application.add_handler(CommandHandler('leaderboard', handle_leaderboard_command, block=False))
-    # application.add_handler(CommandHandler('unlock', unlock_timer, block=False))
+    application.add_handler(
+        MessageHandler(filters.Regex(re.compile(r'^/(ro|ru)', re.IGNORECASE)), handle_retards, block=False))

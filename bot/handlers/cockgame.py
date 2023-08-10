@@ -160,7 +160,7 @@ def cock_plus(cock_size):
 
     num = random.choices([random.randint(1, 20), random.randint(-20, -1)], weights=[0.8, 0.2], k=1)[0]
     if num < 0:
-        if cock_size and cock_size >= 100 and random.random() < 0.3:
+        if cock_size and cock_size >= 100 and random.random() < 0.2:
             new_size = 0
             msg = f"*отвалился к хуям...*"
             num = 0
