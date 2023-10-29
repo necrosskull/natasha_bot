@@ -270,6 +270,10 @@ async def buy_cock(update, context):
         return
 
     elif score >= cock_price:
+        if 'f' in context.args:
+            context.user_data['unlock_message_id'] = user_message_id
+            return await reset_cock(update, context, firsttime=True, user_id=user_id)
+
         keyboard = [
             [InlineKeyboardButton("💰 Купить", callback_data=f'buy {user_id}')],
             [InlineKeyboardButton("❌ Отмена", callback_data=f'cancel {user_id}')],
@@ -300,7 +304,6 @@ async def cock_unlock(update, context):
     cock_price = config.cock_price
 
     query = update.callback_query
-
     if str(query.data).startswith('r'):
         return
 
@@ -318,21 +321,7 @@ async def cock_unlock(update, context):
             button = data_args[0]
 
             if button == 'buy':
-                cooldown = None
-                new_score = score - cock_price
-
-                db.connect()
-                table = TgBotGame.get_by_id(user_id)
-                table.cock_time = cooldown
-                table.score = new_score
-                table.save()
-                db.close()
-
-                message = await query.edit_message_text(text=f"✅ Вы успешно обнулили таймер!\nИспользуй /cock")
-
-                context.job_queue.run_once(delete_message, config.delete_timer,
-                                           data=(message.message_id, user_message_id),
-                                           chat_id=update.effective_chat.id)
+                await reset_cock(update, context, user_id=user_id, query=query)
             else:
                 await query.delete_message()
                 await context.bot.delete_message(update.effective_chat.id, user_message_id)
@@ -342,6 +331,32 @@ async def cock_unlock(update, context):
             context.job_queue.run_once(delete_message, config.delete_timer, data=(message.message_id, user_message_id),
                                        chat_id=update.effective_chat.id)
             return
+
+
+async def reset_cock(update, context, firsttime=None, user_id=None, query=None):
+    score = fetch.get_value_by_id(user_id, 'score')
+    user_message_id = context.user_data['unlock_message_id']
+    cock_price = config.cock_price
+    cooldown = None
+    new_score = score - cock_price
+
+    db.connect()
+    table = TgBotGame.get_by_id(user_id)
+    table.cock_time = cooldown
+    table.score = new_score
+    table.save()
+    db.close()
+
+    if firsttime:
+        message = await context.bot.send_message(chat_id=update.effective_chat.id,
+                                                 text=f"✅ Вы успешно обнулили таймер!\nИспользуй /cock")
+
+    else:
+        message = await query.edit_message_text(text=f"✅ Вы успешно обнулили таймер!\nИспользуй /cock")
+
+    context.job_queue.run_once(delete_message, config.delete_timer,
+                               data=(message.message_id, user_message_id),
+                               chat_id=update.effective_chat.id)
 
 
 async def send_leaderboard(update, context, desc=False):

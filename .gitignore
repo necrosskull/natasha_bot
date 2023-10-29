@@ -161,3 +161,4 @@ cython_debug/
 bot/handlers/main.py
 bot/tests.py
 bot/db/tg_bot.db
+bot/handlers/test_roulette.py

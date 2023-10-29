@@ -14,8 +14,10 @@ command_list = [
 
 delete_timer = 30
 sleep_secs = 1
-cock_price = 40
-default_lives = 3
+cock_price = 50
+default_lives = 5
+roulette_cooldown = 12
+roulette_win_score = 15
 
 load_dotenv()
 

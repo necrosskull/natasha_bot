@@ -51,9 +51,16 @@ async def handle_roulette_command(update, context):
     cooldown, time_diff = check_cooldown(user_id)
 
     if cooldown:
-        remaining_minutes = 60 - time_diff.seconds // 60
+        remain = datetime.timedelta(hours=config.roulette_cooldown) - time_diff
+
+        hours = remain.seconds // 3600
+        minutes = (remain.seconds % 3600) // 60
+        seconds = remain.seconds % 60
+
+        time_left = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
         message_text = f'☠️ Полегче, ты своё отстрелял, пойди пока потрогай траву!\n' \
-                       f'🕐 Осталось {remaining_minutes} минут\n'
+                       f'🕐 Осталось {time_left}\n'
         await send_and_delete_message(context, update.effective_chat.id, thread_id, user_message_id,
                                       message_text,
                                       parse_mode=constants.ParseMode.MARKDOWN, reply=True)
@@ -73,10 +80,10 @@ async def handle_roulette_command(update, context):
                                       parse_mode=constants.ParseMode.MARKDOWN)
         return
 
-    result = random.sample(range(1, 7), 2)
+    result = random.sample(range(1, 7), 3)
 
     if number in result:
-        new_score = score + 10 if score is not None else 10
+        new_score = score + config.roulette_win_score if score is not None else config.roulette_win_score
 
         if lives is not None:
 
@@ -97,7 +104,7 @@ async def handle_roulette_command(update, context):
             )
             db.close()
 
-        message_text = 'Браво, вы выиграли!\n✅ Вам начислено *10* баллов'
+        message_text = f'Браво, вы выиграли!\n✅ Вам начислено *{config.roulette_win_score}* баллов'
 
     else:
         if lives is not None:
@@ -136,7 +143,7 @@ async def handle_roulette_command(update, context):
             table.save()
             db.close()
 
-            message_text = f"💥 БАМ ТЫ СДОХ\n🚫 Все жизни потрачены, возвращайся через час!\n"
+            message_text = f"💥 БАМ ТЫ СДОХ\n🚫 Все жизни потрачены, возвращайся через 12 часов!\n"
 
         else:
             message_text = f"💥 БАМ ТЫ СДОХ\nОсталось жизней: {lives}"
@@ -167,7 +174,7 @@ def check_cooldown(user_id):
         current_time = datetime.datetime.now()
         time_diff = current_time - cooldown
 
-        if time_diff >= datetime.timedelta(hours=1):
+        if time_diff >= datetime.timedelta(hours=config.roulette_cooldown):
             cooldown = None
 
             db.connect()
