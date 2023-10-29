@@ -254,7 +254,7 @@ async def buy_cock(update, context):
     else:
         score, cock_time = None, None
 
-    cooldown = check_cock_time(user_id, cock_time)
+    _, cooldown = check_cock_time(user_id, cock_time)
 
     if cooldown is None:
         message_text = 'У тебя нет таймера, ебанат.'
@@ -349,7 +349,8 @@ async def reset_cock(update, context, firsttime=None, user_id=None, query=None):
 
     if firsttime:
         message = await context.bot.send_message(chat_id=update.effective_chat.id,
-                                                 text=f"✅ Вы успешно обнулили таймер!\nИспользуй /cock")
+                                                 text=f"✅ Вы успешно обнулили таймер!\nИспользуй /cock",
+                                                 reply_to_message_id=user_message_id)
 
     else:
         message = await query.edit_message_text(text=f"✅ Вы успешно обнулили таймер!\nИспользуй /cock")
