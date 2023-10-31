@@ -143,7 +143,8 @@ async def handle_roulette_command(update, context):
             table.save()
             db.close()
 
-            message_text = f"💥 БАМ ТЫ СДОХ\n🚫 Все жизни потрачены, возвращайся через 12 часов!\n"
+            message_text = (f"💥 БАМ ТЫ СДОХ\n🚫 Все жизни потрачены, возвращайся через "
+                            f"{config.roulette_cooldown} часов!\n")
 
         else:
             message_text = f"💥 БАМ ТЫ СДОХ\nОсталось жизней: {lives}"
